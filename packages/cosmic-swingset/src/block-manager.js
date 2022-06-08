@@ -6,8 +6,11 @@ import { assert, details as X } from '@agoric/assert';
 
 import * as BRIDGE_ID from '@agoric/vats/src/bridge-ids.js';
 
+import { makeStoredSubscription, makeSubscriptionKit } from '@agoric/notifier';
 import * as ActionType from './action-types.js';
 import { parseParams } from './params.js';
+
+import '@agoric/notifier/exported.js';
 
 const console = anylogger('block-manager');
 
@@ -15,6 +18,39 @@ const console = anylogger('block-manager');
 const END_BLOCK_SPIN_MS = process.env.END_BLOCK_SPIN_MS
   ? parseInt(process.env.END_BLOCK_SPIN_MS, 10)
   : 0;
+
+/** @typedef {Record<string, unknown>} InstallationNotification */
+
+/**
+ * @template T
+ * @param {T} initialValue
+ * @param {StorageNode} [storageNode]
+ */
+const makeStoredPublisher = (initialValue, storageNode) => {
+  let providedPublication;
+
+  const provide = () => {
+    if (providedPublication) {
+      return providedPublication;
+    }
+    /** @type {SubscriptionRecord<T>} */
+    const { publication, subscription } = makeSubscriptionKit(initialValue);
+    providedPublication = publication;
+    // const storeSubscription = DISCARDED
+    makeStoredSubscription(subscription, storageNode);
+    return providedPublication;
+  };
+
+  /** @param {T} value */
+  const publish = value => {
+    if (!storageNode) {
+      return;
+    }
+    provide().updateState(value);
+  };
+
+  return { provide, publish };
+};
 
 export default function makeBlockManager({
   actionQueue,
@@ -28,6 +64,7 @@ export default function makeBlockManager({
   saveOutsideState,
   savedHeight,
   validateAndInstallBundle,
+  installationStorageNode = undefined,
   verboseBlocks = false,
 }) {
   let computedHeight = savedHeight;
@@ -35,6 +72,11 @@ export default function makeBlockManager({
   let chainTime;
   let latestParams;
   let beginBlockAction;
+
+  const {
+    publish: publishInstallation,
+    provide: provideInstallationPublisher,
+  } = makeStoredPublisher(harden({}), installationStorageNode);
 
   async function processAction(action) {
     const start = Date.now();
@@ -48,6 +90,8 @@ export default function makeBlockManager({
     let p;
     switch (action.type) {
       case ActionType.BEGIN_BLOCK: {
+        provideInstallationPublisher();
+
         latestParams = parseParams(action.params);
         p = beginBlock(action.blockHeight, action.blockTime, latestParams);
         break;
@@ -84,7 +128,21 @@ export default function makeBlockManager({
         p = (async () => {
           const bundle = JSON.parse(action.bundle);
           harden(bundle);
-          return validateAndInstallBundle(bundle);
+
+          const error = await validateAndInstallBundle(bundle).then(
+            () => null,
+            (/** @type {unknown} */ errorValue) => errorValue,
+          );
+
+          const { endoZipBase64Sha512 } = bundle;
+
+          publishInstallation(
+            harden({
+              installed: error === null,
+              endoZipBase64Sha512,
+              error,
+            }),
+          );
         })().catch(error => {
           console.error(error);
         });

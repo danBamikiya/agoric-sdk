@@ -350,7 +350,7 @@ export async function launch({
     actionQueue,
     deliverInbound,
     doBridgeInbound,
-    // bridgeOutbound,
+    bridgeOutbound,
     bootstrapBlock,
     beginBlock,
     endBlock,
