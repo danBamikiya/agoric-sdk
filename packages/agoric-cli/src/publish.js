@@ -227,7 +227,7 @@ export const makeCosmosBundlePublisher = ({
         '--gas-adjustment',
         '1.2',
         '--home',
-        homeDirectory,
+        pathResolve(homeDirectory, 'ag-cosmos-helper-statedir'),
         '--node',
         urlForRpcAddress(rpcAddress),
         '--keyring-backend',
