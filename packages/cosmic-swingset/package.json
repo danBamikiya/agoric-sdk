@@ -36,6 +36,7 @@
     "@endo/far": "^0.2.5",
     "@endo/import-bundle": "^0.2.47",
     "@endo/init": "^0.5.43",
+    "@endo/marshal": "^0.6.9",
     "@iarna/toml": "^2.2.3",
     "@opentelemetry/sdk-metrics-base": "^0.27.0",
     "agoric": "^0.16.0",

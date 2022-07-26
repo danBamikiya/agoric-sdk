@@ -4,9 +4,11 @@ import anylogger from 'anylogger';
 
 import { assert, details as X } from '@agoric/assert';
 
+import { makeMarshal } from '@endo/marshal';
+
 import * as BRIDGE_ID from '@agoric/vats/src/bridge-ids.js';
 
-import { makeStoredSubscription, makeSubscriptionKit } from '@agoric/notifier';
+import { makeStoredSubscriber, makePublishKit } from '@agoric/notifier';
 import * as ActionType from './action-types.js';
 import { parseParams } from './params.js';
 
@@ -20,37 +22,6 @@ const END_BLOCK_SPIN_MS = process.env.END_BLOCK_SPIN_MS
   : 0;
 
 /** @typedef {Record<string, unknown>} InstallationNotification */
-
-/**
- * @template T
- * @param {T} initialValue
- * @param {StorageNode} [storageNode]
- */
-const makeStoredPublisher = (initialValue, storageNode) => {
-  let providedPublication;
-
-  const provide = () => {
-    if (providedPublication) {
-      return providedPublication;
-    }
-    /** @type {SubscriptionRecord<T>} */
-    const { publication, subscription } = makeSubscriptionKit(initialValue);
-    providedPublication = publication;
-    // const storeSubscription = DISCARDED
-    makeStoredSubscription(subscription, storageNode);
-    return providedPublication;
-  };
-
-  /** @param {T} value */
-  const publish = value => {
-    if (!storageNode) {
-      return;
-    }
-    provide().updateState(value);
-  };
-
-  return { provide, publish };
-};
 
 export default function makeBlockManager({
   actionQueue,
@@ -73,10 +44,15 @@ export default function makeBlockManager({
   let latestParams;
   let beginBlockAction;
 
-  const {
-    publish: publishInstallation,
-    provide: provideInstallationPublisher,
-  } = makeStoredPublisher(harden({}), installationStorageNode);
+  const installationPublisher = (() => {
+    if (installationStorageNode === undefined) {
+      return undefined;
+    }
+    const marshaller = makeMarshal();
+    const { publisher, subscriber } = makePublishKit();
+    makeStoredSubscriber(subscriber, installationStorageNode, marshaller);
+    return publisher;
+  })();
 
   async function processAction(action) {
     const start = Date.now();
@@ -90,8 +66,6 @@ export default function makeBlockManager({
     let p;
     switch (action.type) {
       case ActionType.BEGIN_BLOCK: {
-        provideInstallationPublisher();
-
         latestParams = parseParams(action.params);
         p = beginBlock(action.blockHeight, action.blockTime, latestParams);
         break;
@@ -136,16 +110,16 @@ export default function makeBlockManager({
 
           const { endoZipBase64Sha512 } = bundle;
 
-          publishInstallation(
-            harden({
-              installed: error === null,
-              endoZipBase64Sha512,
-              error,
-            }),
-          );
-        })().catch(error => {
-          console.error(error);
-        });
+          if (installationPublisher !== undefined) {
+            installationPublisher.publish(
+              harden({
+                endoZipBase64Sha512,
+                installed: error === null,
+                error,
+              }),
+            );
+          }
+        })();
         break;
       }
 
