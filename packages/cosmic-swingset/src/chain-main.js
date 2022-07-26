@@ -505,6 +505,7 @@ export default async function main(progname, args, { env, homedir, agcc }) {
       portNums.lien = action.lienPort;
     }
 
+    // Ensure that initialization has completed.
     if (!blockingSend) {
       const { savedChainSends: scs, ...fns } =
         await launchAndInitializeSwingSet(action);
