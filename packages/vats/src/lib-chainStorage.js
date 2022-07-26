@@ -72,7 +72,7 @@ const makeNullStorageNode = () => {
  * Convience function for falling back to non-storage when chain storage isn't available.
  * Also takes an optional childname.
  *
- * @param {ERef<ChainStorageNode?>} chainStorage
+ * @param {ERef<StorageNode?>} chainStorage
  * @param {string} [childName]
  * @returns {Promise<StorageNode>}
  */
