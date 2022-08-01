@@ -24,9 +24,13 @@ export const sanitizePathSegment = name => {
 harden(sanitizePathSegment);
 
 /**
+ * @typedef {{key: string, method: string, value?: unknown}} StorageMessage
+ */
+
+/**
  * Create a root storage node for a given backing function and root path.
  *
- * @param {(message: any) => any} toStorage a function for sending a storageMessage object to the storage implementation (cf. golang/cosmos/x/swingset/storage.go)
+ * @param {(message: StorageMessage) => any} toStorage a function for sending a storageMessage object to the storage implementation (cf. golang/cosmos/x/swingset/storage.go)
  * @param {string} storeName currently limited to "swingset"
  * @param {string} rootPath
  */

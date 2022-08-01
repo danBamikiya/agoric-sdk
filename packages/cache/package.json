@@ -20,6 +20,7 @@
   "license": "Apache-2.0",
   "dependencies": {
     "@agoric/store": "^0.7.2",
+    "@agoric/vats": "^0.10.0",
     "@endo/far": "^0.2.5",
     "@endo/marshal": "^0.6.9"
   },
