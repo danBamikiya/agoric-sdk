@@ -1,5 +1,5 @@
-import { provide } from '@agoric/store';
 import {
+  provideOnce,
   defineDurableKind,
   defineDurableKindMulti,
   makeKindHandle,
@@ -27,7 +27,9 @@ harden(dropContext);
  * @returns {DurableKindHandle}
  */
 export const provideKindHandle = (baggage, kindName) =>
-  provide(baggage, `${kindName}_kindHandle`, () => makeKindHandle(kindName));
+  provideOnce(baggage, `${kindName}_kindHandle`, () =>
+    makeKindHandle(kindName),
+  );
 // @ts-expect-error TODO statically recognize harden
 harden(provideKindHandle);
 
@@ -135,7 +137,7 @@ export const vivifySingleton = (
     options,
   );
 
-  return provide(baggage, `the_${kindName}`, () => makeSingleton());
+  return provideOnce(baggage, `the_${kindName}`, () => makeSingleton());
 };
 // @ts-expect-error TODO statically recognize harden
 harden(vivifySingleton);

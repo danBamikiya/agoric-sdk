@@ -10,9 +10,8 @@ import {
 } from '@agoric/zoe/src/contractSupport/index.js';
 import { Far } from '@endo/marshal';
 import { handleParamGovernance, ParamTypes } from '@agoric/governance';
-import { vivifyKindMulti } from '@agoric/vat-data';
+import { provideOnce, vivifyKindMulti } from '@agoric/vat-data';
 import { AmountMath } from '@agoric/ertp';
-import { provide } from '@agoric/store';
 
 import { makeMakeCollectFeesInvitation } from '../collectFees.js';
 
@@ -90,7 +89,7 @@ export const start = async (zcf, privateArgs, baggage) => {
     );
 
   const provideEmptyZcfSeat = name => {
-    return provide(baggage, name, () => zcf.makeEmptySeatKit().zcfSeat);
+    return provideOnce(baggage, name, () => zcf.makeEmptySeatKit().zcfSeat);
   };
 
   const anchorPool = provideEmptyZcfSeat('anchorPoolSeat');

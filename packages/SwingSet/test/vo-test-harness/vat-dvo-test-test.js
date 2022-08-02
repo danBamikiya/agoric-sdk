@@ -1,7 +1,10 @@
 import { E } from '@endo/eventual-send';
 import { Far } from '@endo/marshal';
-import { provide } from '@agoric/store';
-import { provideKindHandle, defineDurableKind } from '@agoric/vat-data';
+import {
+  provideOnce,
+  provideKindHandle,
+  defineDurableKind,
+} from '@agoric/vat-data';
 
 export function buildRootObject(_vatPowers, vatParameters, baggage) {
   let other;
@@ -13,7 +16,7 @@ export function buildRootObject(_vatPowers, vatParameters, baggage) {
     getTag: ({ state }) => state.tag,
   });
 
-  const testThing = provide(baggage, 'testthing', () =>
+  const testThing = provideOnce(baggage, 'testthing', () =>
     makeThing('test thing'),
   );
 

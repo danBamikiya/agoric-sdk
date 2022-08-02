@@ -10,8 +10,8 @@ import { makeNotifierKit } from '@agoric/notifier';
 import { Far, passStyleOf } from '@endo/marshal';
 import { E } from '@endo/eventual-send';
 import { Nat, isNat } from '@agoric/nat';
-import { provide } from '@agoric/store';
 import {
+  provideOnce,
   makeScalarBigMapStore,
   makeScalarBigSetStore,
   vivifyKind,
@@ -46,7 +46,7 @@ export function buildRootObject(vatPowers, _vatParameters, baggage) {
     runningVats.set(vatID, prr);
   }
 
-  const managedVats = provide(baggage, 'managedVats', () =>
+  const managedVats = provideOnce(baggage, 'managedVats', () =>
     makeScalarBigSetStore('managedVats', { durable: true }),
   );
   for (const vatID of managedVats.keys()) {
@@ -130,7 +130,7 @@ export function buildRootObject(vatPowers, _vatParameters, baggage) {
 
   // meterID -> { meter, updater }
   // XXX currently actually meterID -> { meter } due to notifiers not yet being durable
-  const meterByID = provide(baggage, 'meterByID', () =>
+  const meterByID = provideOnce(baggage, 'meterByID', () =>
     makeScalarBigMapStore('meterByID', { durable: true }),
   );
   const meterIDByMeter = new WeakMap(); // meter -> meterID

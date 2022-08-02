@@ -1,6 +1,6 @@
 import { assert, details as X } from '@agoric/assert';
-import { provide } from '@agoric/store';
 import {
+  provideOnce,
   defineDurableKindMulti,
   makeScalarBigMapStore,
   provideDurableMapStore,
@@ -179,7 +179,7 @@ export function buildRootObject(vatPowers, _vatParams, baggage) {
     baggage,
     networkHostNamesBaggageKey,
   );
-  let networkHostCounter = provide(
+  let networkHostCounter = provideOnce(
     baggage,
     networkHostCounterBaggageKey,
     () => 0n,

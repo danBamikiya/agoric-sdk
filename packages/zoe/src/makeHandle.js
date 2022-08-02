@@ -1,8 +1,11 @@
 // @ts-check
 
 import { assert } from '@agoric/assert';
-import { provide } from '@agoric/store';
-import { defineDurableKind, makeKindHandle } from '@agoric/vat-data';
+import {
+  provideOnce,
+  defineDurableKind,
+  makeKindHandle,
+} from '@agoric/vat-data';
 import { Far } from '@endo/marshal';
 
 /** @typedef {import('@agoric/vat-data').Baggage} Baggage */
@@ -15,7 +18,7 @@ import { Far } from '@endo/marshal';
  */
 export const defineDurableHandle = (baggage, handleType) => {
   assert.typeof(handleType, 'string', 'handleType must be a string');
-  const durableHandleKindHandle = provide(
+  const durableHandleKindHandle = provideOnce(
     baggage,
     `${handleType}KindHandle`,
     () => makeKindHandle(`${handleType}Handle`),
