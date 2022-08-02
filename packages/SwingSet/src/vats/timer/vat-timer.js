@@ -198,7 +198,11 @@ export function buildRootObject(vatPowers, _vatParameters, baggage) {
     assert(timerDevice, 'TimerService used before createTimerService()');
   }
 
-  // first, create the KindHandles for all our durable objects
+  // First, create the KindHandles for all our durable objects. These
+  // are ongoing obligations of the vat: all future versions must
+  // define behaviors for these. We are also obligated to support the
+  // vivifySingleton calls at the bottom: wakeupHandler, timerService,
+  // timerClock, and timerBrand.
   const oneShotEventHandle = provideKindHandle(baggage, 'oneShotEventHandle');
   const promiseEventHandle = provideKindHandle(baggage, 'promiseEventHandle');
   const repeaterEventHandle = provideKindHandle(baggage, 'repeaterEventHandle');
