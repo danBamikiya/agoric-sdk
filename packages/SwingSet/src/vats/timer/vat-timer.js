@@ -14,7 +14,7 @@ import {
   makeScalarBigWeakMapStore,
   vivifySingleton,
 } from '@agoric/vat-data';
-import { provide, makeLegacyWeakMap } from '@agoric/store';
+import { provide, makeScalarWeakMapStore } from '@agoric/store';
 import { TimeMath } from './timeMath.js';
 
 // RAM usage: O(number of outstanding delay() promises) +
@@ -236,10 +236,11 @@ export function buildRootObject(vatPowers, _vatParameters, baggage) {
   // fires. It's ok for these to be ephemeral: all promises get
   // rejected (with { name: 'vatUpgraded' }) during an upgrade, so if
   // the timer fires *after* an upgrade, we no longer need to reject
-  // it ourselves.
+  // it ourselves. The RAM usage will be O(N) on the number of pending
+  // Promise-based wakeups currently scheduled.
 
   /** @type {WakeupPromiseTable} */
-  const wakeupPromises = makeLegacyWeakMap('promises');
+  const wakeupPromises = makeScalarWeakMapStore('promises');
 
   // -- helper functions
 
@@ -508,7 +509,9 @@ export function buildRootObject(vatPowers, _vatParameters, baggage) {
   function wakeAtInternal(when, cancelToken) {
     const event = makePromiseEvent(when, cancelToken);
     const { resolve, reject, promise } = makePromiseKit();
-    const controls = harden({ resolve, reject });
+    // these 'controls' are never shared off-vat, but we wrap them as
+    // Far to appease WeakMapStore's value requirements
+    const controls = Far('controls', { resolve, reject });
     wakeupPromises.init(event, controls);
     event.scheduleYourself();
     return promise; // disconnects upon upgrade
