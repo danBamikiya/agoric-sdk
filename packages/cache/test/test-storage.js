@@ -102,13 +102,42 @@ test('makeChainStorageCoordinator with remote values', async t => {
   });
 });
 
-test.todo(
-  'a second cache coordinator (mock casting client) that can read what went into the storageNode',
-);
-// chainStorage needs a way to read the values that were stored
-// make a pretent chainStorage that has the ability to read (pretend because something in casting will eventually be made that delivers )
-// MAYBE add `getValue` to storageNode
-// but probably easier to make somethign just for this test
-// have to make the cache read use the `convertSlotToVal` for marshaller (if it works with this test one it'll work with others)
+// NB: this depends on ChainStorage supporting `getValue()`, which is TBD
+test('casting client spike', async t => {
+  const storageNodeState = {};
+  const chainStorage = makeChainStorageRoot(
+    message => {
+      assert(message.key === 'cache');
+      switch (message.method) {
+        case 'get':
+          return storageNodeState.cache;
+        case 'set':
+          storageNodeState.cache = message.value;
+          return storageNodeState.cache;
+        default:
+          assert.fail(`unknown method ${message.method}`);
+      }
+    },
+    'swingset',
+    'cache',
+  );
 
-// test('casting client spike', async t => {});
+  const cache = makeCache(
+    makeChainStorageCoordinator(chainStorage, makeFakeMarshaller()),
+  );
+
+  const farThing = Far('farThing', { getAllegedName: () => 'dollaz' });
+
+  // put it in cache
+  t.is(await cache('brand', farThing), farThing);
+  t.deepEqual(Object.keys(storageNodeState), ['cache']);
+  t.deepEqual(JSON.parse(storageNodeState.cache), {
+    '{"body":"\\"brand\\"","slots":[]}': {
+      body: '{"generation":{"@qclass":"bigint","digits":"1"},"value":{"@qclass":"slot","iface":"Alleged: farThing","index":0}}',
+      slots: [1],
+    },
+  });
+
+  // read it back out
+  t.is(await cache('brand'), farThing);
+});

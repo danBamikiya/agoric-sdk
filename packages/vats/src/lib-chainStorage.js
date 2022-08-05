@@ -78,6 +78,10 @@ export function makeChainStorageRoot(
       // * recursive delete
       // * batch operations
       // * local buffering (with end-of-block commit)
+      // DONOTMERGE do we want this here?
+      getValue() {
+        handleStorageMessage({ key: path, method: 'get' });
+      },
     };
     return Far('chainStorageNode', node);
   }
