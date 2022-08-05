@@ -5,6 +5,7 @@ import { matches, makeScalarMapStore } from '@agoric/store';
 
 import '@agoric/store/exported.js';
 
+import { makeScalarBigMapStore } from '@agoric/vat-data';
 import { withGroundState, makeState } from './state.js';
 
 /**
@@ -104,6 +105,21 @@ const applyCacheTransaction = async (
 };
 
 /**
+ * @param {MapStore<string, import('./types').State>} stateStore
+ * @param {Marshaller} marshaller
+ * @returns {Promise<string>}
+ */
+const stringifyStateStore = async (stateStore, marshaller) => {
+  const obj = {};
+  for (const [key, value] of stateStore.entries()) {
+    obj[key] = E(marshaller).serialize(harden(value));
+  }
+  return deeplyFulfilled(harden(obj)).then(fulfilledObj =>
+    JSON.stringify(fulfilledObj),
+  );
+};
+
+/**
  * Make a cache coordinator backed by a MapStore.  This coordinator doesn't
  * currently enforce any cache eviction, but that would be a useful feature.
  *
@@ -149,48 +165,40 @@ export const makeScalarStoreCoordinator = (
   return coord;
 };
 
-// TODO make this like the MapStore wrapper but handle async b/c
 /**
  * Make a cache coordinator backed by a MapStore.  This coordinator doesn't
  * currently enforce any cache eviction, but that would be a useful feature.
  *
- * @param {MapStore<string, import('./types').State>} stateStore
  * @param {ERef<StorageNode>} storageNode
  * @param {ERef<Marshaller>} marshaller
  */
-export const makeChainStorageCoordinator = (
-  stateStore,
-  storageNode,
-  marshaller,
-) => {
+export const makeChainStorageCoordinator = (storageNode, marshaller) => {
+  const stateStore = makeScalarBigMapStore('stateKey');
+
   const sanitize = deeplyFulfilled;
   const serializePassable = makeKeyToString(sanitize);
 
   const defaultStateStore = withGroundState(stateStore);
 
   // so we don't write any marshalled value that's older than what's already pushed
-  // TODO? make this work like the publishkit does
   let lastPrepareTicket = 0n;
   let lastCommitTicket = 0n;
-  /** @type {<T>(storedValue: Promise<T>) => Promise<T>} */
+  /** @type {<T>(storedValue: T) => Promise<T>} */
   const updateStorageNode = async storedValue => {
-    const debugStoredValue = await storedValue;
-    console.log('DEBUG updateSTorageNode', debugStoredValue);
     // NB: two phase write (serialize/setValue)
     // Make sure we're not racing ahead if the marshaller is taking too long, by skipping
     // setValue (commit) for any serialized (prepare) that's older than the latest commit.
     lastPrepareTicket += 1n;
     const marshallTicket = lastPrepareTicket;
-    console.log('DEBUG marshalling', stateStore, Array.from(stateStore.keys()));
-    const serializedStore = await E(marshaller).serialize(stateStore);
-    console.log('DEBUG serialized is ', serializedStore);
+    const serializedStore = await stringifyStateStore(
+      defaultStateStore,
+      marshaller,
+    );
     if (marshallTicket < lastCommitTicket) {
       // skip setValue() so we don't regress the store state
       return storedValue;
     }
-    console.log('DEBUG setValue:', marshallTicket);
-    await E(storageNode).setValue(serializedStore.body);
-    console.log('DEBUG ...setValue', marshallTicket);
+    await E(storageNode).setValue(serializedStore);
     lastCommitTicket = marshallTicket;
     return storedValue;
   };
@@ -199,12 +207,10 @@ export const makeChainStorageCoordinator = (
   const coord = Far('store cache coordinator', {
     getRecentValue: async key => {
       const keyStr = await serializePassable(key);
-      console.log('DEBUG getRecentValue', key, keyStr);
       return defaultStateStore.get(keyStr).value;
     },
     setCacheValue: async (key, newValue, guardPattern) => {
       const keyStr = await serializePassable(key);
-      console.log('DEBUG setCacheValue', key, keyStr);
       const storedValue = await applyCacheTransaction(
         keyStr,
         () => newValue,
@@ -212,12 +218,10 @@ export const makeChainStorageCoordinator = (
         sanitize,
         defaultStateStore,
       );
-      console.log('AFTER applyCacheTransaction', Array.from(stateStore.keys()));
       return updateStorageNode(storedValue);
     },
     updateCacheValue: async (key, updater, guardPattern) => {
       const keyStr = await serializePassable(key);
-      console.log('DEBUG updateCacheValue', key, keyStr);
       const storedValue = await applyCacheTransaction(
         keyStr,
         oldValue => E(updater).update(oldValue),
