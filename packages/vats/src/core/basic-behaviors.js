@@ -234,6 +234,11 @@ export const makeClientBanks = async ({
   },
 }) => {
   const STORAGE_PATH = 'wallet';
+  [agoricNames, board, namesByAddress] = await Promise.all([
+    agoricNames,
+    board,
+    namesByAddress,
+  ]);
 
   const storageNode = await makeStorageNode(chainStorage, STORAGE_PATH);
   const { creatorFacet } = await E(zoe).startInstance(
