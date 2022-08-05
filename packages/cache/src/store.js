@@ -154,17 +154,75 @@ export const makeScalarStoreCoordinator = (
  * Make a cache coordinator backed by a MapStore.  This coordinator doesn't
  * currently enforce any cache eviction, but that would be a useful feature.
  *
- * @param {MapStore<string, import('./types').State>} [stateStore]
+ * @param {MapStore<string, import('./types').State>} stateStore
  * @param {ERef<StorageNode>} storageNode
  * @param {ERef<Marshaller>} marshaller
  */
-/*
 export const makeChainStorageCoordinator = (
-  stateStore = makeScalarMapStore(),
+  stateStore,
   storageNode,
   marshaller,
-) => {};
-*/
+) => {
+  const sanitize = deeplyFulfilled;
+  const serializePassable = makeKeyToString(sanitize);
+
+  const defaultStateStore = withGroundState(stateStore);
+
+  // so we don't write any marshalled value that's older than what's already pushed
+  // TODO? make this work like the publishkit does
+  let lastPrepareTicket = 0n;
+  let lastCommitTicket = 0n;
+  /** @type {<T>(storedValue: Promise<T>) => Promise<T>} */
+  const updateStorageNode = async storedValue => {
+    const debugStoredValue = await storedValue;
+    console.log('DEBUG updateSTorageNode', debugStoredValue);
+    // NB: two phase write (serialize/setValue)
+    // Make sure we're not racing ahead if the marshaller is taking too long, by skipping
+    // setValue (commit) for any serialized (prepare) that's older than the latest commit.
+    lastPrepareTicket += 1n;
+    const marshallTicket = lastPrepareTicket;
+    console.log('DEBUG marshalling', stateStore, Array.from(stateStore.keys()));
+    const serializedStore = await E(marshaller).serialize(stateStore);
+    console.log('DEBUG serialized is ', serializedStore);
+    if (marshallTicket < lastCommitTicket) {
+      // skip setValue() so we don't regress the store state
+      return storedValue;
+    }
+    console.log('DEBUG setValue:', marshallTicket);
+    await E(storageNode).setValue(serializedStore.body);
+    console.log('DEBUG ...setValue', marshallTicket);
+    lastCommitTicket = marshallTicket;
+    return storedValue;
+  };
+
+  /** @type {import('./types').Coordinator} */
+  const coord = Far('store cache coordinator', {
+    getRecentValue: async key => {
+      const keyStr = await serializePassable(key);
+      console.log('DEBUG getRecentValue', key, keyStr);
+      return defaultStateStore.get(keyStr).value;
+    },
+    setCacheValue: async (key, newValue, guardPattern) => {
+      const keyStr = await serializePassable(key);
+      console.log('DEBUG setCacheValue', key, keyStr);
+      const storedValue = await applyCacheTransaction(
+        keyStr,
+        () => newValue,
+        guardPattern,
+        sanitize,
+        defaultStateStore,
+      );
+      console.log('AFTER applyCacheTransaction', Array.from(stateStore.keys()));
+      return updateStorageNode(storedValue);
+    },
+    updateCacheValue: async (key, updater, guardPattern) => {
+      const keyStr = await serializePassable(key);
+      console.log('DEBUG updateCacheValue', key, keyStr);
+      const storedValue = await applyCacheTransaction(
+        keyStr,
+        oldValue => E(updater).update(oldValue),
+        guardPattern,
+        sanitize,
         defaultStateStore,
       );
       return updateStorageNode(storedValue);
