@@ -4,10 +4,7 @@ import '@agoric/zoe/exported.js';
 
 import { AssetKind, makeIssuerKit } from '@agoric/ertp';
 import { handleParamGovernance, ParamTypes } from '@agoric/governance';
-import {
-  makeAtomicProvider,
-  provide,
-} from '@agoric/store/src/stores/store-utils.js';
+import { makeAtomicProvider } from '@agoric/store/src/stores/store-utils.js';
 import {
   assertIssuerKeywords,
   offerTo,
@@ -17,6 +14,7 @@ import { Far } from '@endo/marshal';
 import {
   provideDurableMapStore,
   provideDurableWeakMapStore,
+  provideOnce,
   vivifyKindMulti,
 } from '@agoric/vat-data';
 import { makeMakeCollectFeesInvitation } from '../collectFees.js';
@@ -218,7 +216,7 @@ const start = async (zcf, privateArgs, baggage) => {
     secondaryBrandToLiquidityMint,
   );
 
-  const quoteIssuerKit = provide(baggage, 'quoteIssuerKit', () =>
+  const quoteIssuerKit = provideOnce(baggage, 'quoteIssuerKit', () =>
     makeIssuerKit('Quote', AssetKind.SET),
   );
 
@@ -235,7 +233,7 @@ const start = async (zcf, privateArgs, baggage) => {
 
   // For now, this seat collects protocol fees. It needs to be connected to
   // something that will extract the fees.
-  const protocolSeat = provide(
+  const protocolSeat = provideOnce(
     baggage,
     'protocolSeat',
     () => zcf.makeEmptySeatKit().zcfSeat,
